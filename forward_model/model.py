@@ -70,37 +70,41 @@ class MethodOfMomentModel:
         epsilon_r[(grid_positions[0] - 0.25)**2 + (grid_positions[1] - 0.25)**2 <= h_side_y**2] = self.object_permittivity
         return epsilon_r
 
-    @staticmethod
-    def find_grids_with_object(grid_positions, grid_permittivities):
+    def find_grids_with_object(self, grid_positions, grid_permittivities):
         """
         Function returns centroids of grids containing scatterers
         """
-        object_grids = []
+        self.object_grid_centroids = []
+        self.object_grid_locations = []
         for i in range(grid_permittivities.shape[0]):
             for j in range(grid_permittivities.shape[1]):
-                if grid_permittivities[i,j] != 1:
-                    x_coord = round(grid_positions[0][i,j],4)
-                    y_coord = round(grid_positions[1][i,j], 4)
-                    object_grids.append((x_coord,y_coord))
-        return object_grids
+                if grid_permittivities[i, j] != 1:
+                    x_coord = round(grid_positions[0][i, j], 4)
+                    y_coord = round(grid_positions[1][i, j], 4)
+                    self.object_grid_centroids.append((x_coord, y_coord))
+                    self.object_grid_locations.append((i, j))
 
-    def incident_field_on_grid(self, object_grids, grid_permittivities):
+    def field_due_to_scatterers(self, grid_permittivities):
         # Object field is a 2D array that captures the field on every point scatterer due to every other point scatterer
-        object_field = np.zeros((len(object_grids), len(object_grids)), dtype=complex)
-        all_x = [grid[0] for grid in object_grids]
-        all_y = [grid[1] for grid in object_grids]
-        for i in range(len(object_grids)):
-            # Point scatterer we are measuring the field on
-            x_incident = object_grids[i][0]
-            y_incident = object_grids[i][1]
+        object_field = np.zeros((len(self.object_grid_centroids), len(self.object_grid_centroids)), dtype=complex)
+        all_x = [grid[0] for grid in self.object_grid_centroids]
+        all_y = [grid[1] for grid in self.object_grid_centroids]
+        for i in range(len(self.object_grid_centroids)):
+            # Centroid of grid containing point scatterer we are measuring the field on
+            x_incident = self.object_grid_centroids[i][0]
+            y_incident = self.object_grid_centroids[i][1]
+
+            x_gridnum = self.object_grid_locations[i][0]
+            y_gridnum = self.object_grid_locations[i][1]
 
             dipole_distances = np.sqrt((x_incident - all_x)**2 + (y_incident - all_y)**2)
-            assert len(dipole_distances) == len(object_grids)
+            assert len(dipole_distances) == len(self.object_grid_centroids)
 
-            z1 = np.array(len(dipole_distances),dtype=complex)
-            z1 = -self.impedance * np.pi * self.grid_radius / (2 * bessel1(1, self.wave_number * self.grid_radius) * hankel1(0, 1, self.wave_number*dipole_distances))
-            z1[i] = -self.impedance*np.pi*self.grid_radius/(2*hankel1(1,1,self.wave_number*self.grid_radius))-1j*self.impedance*grid_permittivities[x_incident,y_incident]/(self.wave_number*(grid_permittivities[x_incident,y_incident]-1))
+            z1 = -self.impedance * np.pi * (self.grid_radius/2) * bessel1(1, self.wave_number * self.grid_radius) * hankel1(0, self.wave_number*dipole_distances)
+            z1[i] = -self.impedance*np.pi*(self.grid_radius/2)*hankel1(1,self.wave_number*self.grid_radius)-1j*self.impedance*grid_permittivities[x_gridnum,y_gridnum]/(self.wave_number*(grid_permittivities[x_gridnum,y_gridnum]-1))
             assert len(z1) == len(dipole_distances)
+            object_field[i, :] = z1
+        return object_field
 
 
 if __name__ == '__main__':
@@ -112,5 +116,6 @@ if __name__ == '__main__':
         transmitter_positions = sensor_positions
     grid_positions = model.get_grid_positions()
     grid_permittivities = model.get_grid_permittivities(grid_positions)
-    object_grids = MethodOfMomentModel.find_grids_with_object(grid_positions, grid_permittivities)
+    model.find_grids_with_object(grid_positions, grid_permittivities)
+    field = model.field_due_to_scatterers(grid_permittivities)
 
