@@ -18,8 +18,6 @@ class MethodOfMomentModel:
         self.transreceiver = True
         self.nan_remove = True
         self.noise_level = 0
-
-        # Method of Moment parameters
         self.doi_size = 0.5
         self.object_permittivity = 3
         self.number_of_rx = 40
