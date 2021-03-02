@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import jv as bessel1
 from scipy.special import hankel1
+import copy
 
 
 class MethodOfMomentModel:
@@ -31,39 +32,22 @@ class MethodOfMomentModel:
         """
         Function returns the co-ordinates where sensors are placed
         """
-        # x_nodes = np.linspace(start=-self.room_length/2, stop=self.room_length/2, num=int(self.number_of_rx/4)+1)
-        # y_nodes = np.linspace(start=-self.room_length/2, stop=self.room_length/2, num=int(self.number_of_rx/4)+1)
-        # sensor_positions = []
-        # if self.geometry == "square" and self.transreceiver:
-        #     """
-        #     If the geometry is a square, sensors are on the sides of the square room
-        #     If they are transreceivers, both transmitters and receivers have the same coordinates
-        #     """
-        #     for i in x_nodes:
-        #         for j in y_nodes:
-        #             if j == y_nodes[0] or j == y_nodes[-1]:
-        #                 i = round(i, 1)
-        #                 j = round(j, 1)
-        #                 sensor_positions.append((i, j))
-        #             if i == x_nodes[0] or i == x_nodes[-1]:
-        #                 i = round(i, 1)
-        #                 j = round(j, 1)
-        #                 sensor_positions.append((i, j))
-        # sensor_positions = list(set(sensor_positions))
-        X = [-1.50000000000000, -1.20000000000000, -0.900000000000000, -0.600000000000000, -0.300000000000000, 0,
-         0.300000000000000, 0.600000000000000, 0.900000000000000, 1.20000000000000, 1.50000000000000, 1.50000000000000,
-         1.50000000000000, 1.50000000000000, 1.50000000000000, 1.50000000000000, 1.50000000000000, 1.50000000000000,
-         1.50000000000000, 1.50000000000000, 1.50000000000000, 1.20000000000000, 0.900000000000000, 0.600000000000000,
-         0.300000000000000, 0, -0.300000000000000, -0.600000000000000, -0.900000000000000, -1.20000000000000,
-         -1.50000000000000, -1.50000000000000, -1.50000000000000, -1.50000000000000, -1.50000000000000,
-         -1.50000000000000, -1.50000000000000, -1.50000000000000, -1.50000000000000, -1.50000000000000]
-        Y = [-1.50000000000000, -1.50000000000000, -1.50000000000000, -1.50000000000000, -1.50000000000000,
-         -1.50000000000000, -1.50000000000000, -1.50000000000000, -1.50000000000000, -1.50000000000000,
-         -1.50000000000000, -1.20000000000000, -0.900000000000000, -0.600000000000000, -0.300000000000000, 0,
-         0.300000000000000, 0.600000000000000, 0.900000000000000, 1.20000000000000, 1.50000000000000, 1.50000000000000,
-         1.50000000000000, 1.50000000000000, 1.50000000000000, 1.50000000000000, 1.50000000000000, 1.50000000000000,
-         1.50000000000000, 1.50000000000000, 1.50000000000000, 1.20000000000000, 0.900000000000000, 0.600000000000000,
-         0.300000000000000, 0, -0.300000000000000, -0.600000000000000, -0.900000000000000, -1.20000000000000]
+        X = [-1.5, -1.2, -0.9, -0.6, -0.3, 0,
+         0.3, 0.6, 0.9, 1.2, 1.5, 1.5,
+         1.5, 1.5, 1.5, 1.5, 1.5, 1.5,
+         1.5, 1.5, 1.5, 1.2, 0.9, 0.6,
+         0.3, 0, -0.3, -0.6, -0.9, -1.2,
+         -1.5, -1.5, -1.5, -1.5, -1.5,
+         -1.5, -1.5, -1.5, -1.5, -1.5]
+
+        Y = [-1.5, -1.5, -1.5, -1.5, -1.5,
+         -1.5, -1.5, -1.5, -1.5, -1.5,
+         -1.5, -1.2, -0.9, -0.6, -0.3, 0,
+         0.3, 0.6, 0.9, 1.2, 1.5, 1.5,
+         1.5, 1.5, 1.5, 1.5, 1.5, 1.5,
+         1.5, 1.5, 1.5, 1.2, 0.9, 0.6,
+         0.3, 0, -0.3, -0.6, -0.9, -1.2]
+
         sensor_positions = np.transpose(np.array([X, Y]))
         return sensor_positions
 
@@ -73,9 +57,9 @@ class MethodOfMomentModel:
         """
         self.grid_length = self.doi_size / self.m
         self.grid_radius = np.sqrt(self.grid_length**2/np.pi)
-        centroids_x = np.arange(start=self.grid_length/2, stop=self.doi_size, step=self.grid_length)
-        centroids_y = np.arange(start=self.doi_size - self.grid_length/2, stop=0, step=-self.grid_length)
-        return np.meshgrid(centroids_x, centroids_y)
+        self.centroids_x = np.arange(start=self.grid_length/2, stop=self.doi_size, step=self.grid_length)
+        self.centroids_y = np.arange(start=self.doi_size - self.grid_length/2, stop=0, step=-self.grid_length)
+        return np.meshgrid(self.centroids_x, self.centroids_y)
 
     def get_grid_permittivities(self, grid_positions):
         """
@@ -197,13 +181,63 @@ class MethodOfMomentModel:
 
         return scattered_field
 
-    def get_total_field(self, direct_field, scattered_field):
-        """
-        Total field at the receivers
-        """
-        total_field = direct_field + scattered_field
-        if self.transreceiver and self.nan_remove:
+    def remove_nan_values(self, field):
+        if self.nan_remove:
+            np.fill_diagonal(field, np.nan)
+            k = field.reshape(field.size)
+            l = [x for x in k if not np.isnan(x)]
+            m = np.reshape(l, (self.number_of_rx - 1, self.number_of_tx))
+            return m
+        if not self.nan_remove:
+            field[np.isnan(field)] = 0
+            return field
 
+    def transreceiver_manipulation(self, direct_field, scattered_field, total_field):
+
+        txrx_pairs = []
+
+        if self.transreceiver:
+
+            direct_field = self.remove_nan_values(direct_field)
+            scattered_field = self.remove_nan_values(scattered_field)
+            total_field = self.remove_nan_values(total_field)
+
+            for i in range(self.number_of_tx):
+                for j in range(self.number_of_rx):
+                    if i != j:
+                        txrx_pairs.append((i, j))
+
+        else:
+
+            for i in range(self.number_of_tx):
+                for j in range(self.number_of_rx):
+                    txrx_pairs.append((i, j))
+
+        return direct_field, scattered_field, total_field, txrx_pairs
+
+    def get_power_from_field(self, field):
+        power = (np.abs(field)**2) * (self.wavelength**2) / (4*np.pi*self.impedance)
+        power = 10 * np.log10(power / 1e-3)
+        return power
+
+    def save_data(self, txrx_pairs, incident_power, total_power, sensor_positions, direct_field, scattered_field, total_field):
+        np.savez("Forward data",
+                 txrx_pairs=txrx_pairs,
+                 DOI_size=self.doi_size,
+                 incident_power=incident_power,
+                 total_power=total_power,
+                 sensor_positions=sensor_positions,
+                 grid_centroids_x=self.centroids_x,
+                 grid_centroids_y=self.centroids_y,
+                 direct_field=direct_field,
+                 scattered_field=scattered_field,
+                 total_field=total_field
+                 )
+
+    def load_data(self, filepath):
+        data = np.load(filepath)
+        print("Data: ", data.files)
+        return data.files
 
 
 if __name__ == '__main__':
@@ -237,5 +271,18 @@ if __name__ == '__main__':
 
     scattered_field = model.get_scattered_field(current)
 
+    total_field = direct_field + scattered_field
 
+    total_field_copy = copy.deepcopy(total_field)
 
+    direct_field, scattered_field, total_field, txrx_pairs = model.transreceiver_manipulation(direct_field, scattered_field, total_field)
+
+    incident_power = model.get_power_from_field(direct_field)
+
+    total_power = model.get_power_from_field(total_field)
+
+    # ----------------------------------------------------------------------
+    # All field values are now calculated
+    # ----------------------------------------------------------------------
+
+    model.save_data(txrx_pairs, incident_power, total_power, sensor_positions, direct_field, scattered_field, total_field)
