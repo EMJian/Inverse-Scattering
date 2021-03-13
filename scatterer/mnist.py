@@ -5,6 +5,7 @@ from skimage.color import rgb2gray
 from skimage.filters import threshold_otsu
 from skimage.transform import resize
 
+
 from tensorflow.keras.datasets import mnist
 
 
@@ -29,16 +30,30 @@ class MNISTScatterer:
         self.scatterer[self.resized > 0] = self.object_permittivity
 
     def view_images(self):
+        fig = plt.figure(figsize=(8, 8))
+
+        image = fig.add_subplot(2, 2, 1)
         plt.imshow(self.image, cmap=plt.cm.brg)
+        image.title.set_text("Original RGB image: 28x28 pixels")
+
+        binary = fig.add_subplot(2, 2, 2)
         plt.imshow(self.binary, cmap=plt.cm.gray)
+        binary.title.set_text("Binary image: 28x28 pixels")
+
+        resized = fig.add_subplot(2, 2, 3)
         plt.imshow(self.resized, cmap=plt.cm.gray)
-        plt.imshow(self.scatterer, cmap=plt.cm.gray)
+        resized.title.set_text("Resized binary image: 100x100 pixels")
+
+        final = fig.add_subplot(2, 2, 4)
+        plt.imshow(self.scatterer, cmap=plt.cm.gray, extent=[0, 0.5, 0, 0.5])
+        final.title.set_text("Resized scatterer: 100x100 pixels")
+
+        plt.show()
 
     def get_scatterer_profile(self):
         self.convert_to_binary()
         self.resize_image()
         self.set_grid_permittivities()
-        self.view_images()
         return self.scatterer
 
 
@@ -48,10 +63,8 @@ if __name__ == '__main__':
     digit_images = digits[0][0]
     permittivity = []
 
-    for i in range(10):
+    for i in range(1):
         image = digit_images[0, :, :]
         scatterer = MNISTScatterer(image, 100, 3)
         permittivity.append(scatterer.get_scatterer_profile())
-
-    permittivity = np.reshape(permittivity, (10, 100, 100))
-    print(permittivity.shape)
+        scatterer.view_images()
