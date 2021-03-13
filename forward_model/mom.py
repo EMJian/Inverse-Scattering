@@ -1,7 +1,9 @@
+import os
 import numpy as np
 from scipy.special import jv as bessel1
 from scipy.special import hankel1
-import copy
+
+import matplotlib.pyplot as plt
 
 
 class MethodOfMomentModel:
@@ -158,7 +160,7 @@ class MethodOfMomentModel:
 
         return current
 
-    def get_scattered_field(self, current):
+    def get_scattered_field(self, current, grid_positions, transmitter_positions):
 
         transmitter_x = [pos[0] for pos in transmitter_positions]
         transmitter_y = [pos[1] for pos in transmitter_positions]
@@ -182,9 +184,10 @@ class MethodOfMomentModel:
     def remove_nan_values(self, field):
         if self.nan_remove:
             np.fill_diagonal(field, np.nan)
-            k = field.reshape(field.size)
+            k = field.reshape(field.size, order='F')
             l = [x for x in k if not np.isnan(x)]
-            m = np.reshape(l, (self.number_of_rx - 1, self.number_of_tx))
+            m = np.reshape(l, (self.number_of_tx, self.number_of_rx-1))
+            m = np.transpose(m)
             return m
         if not self.nan_remove:
             field[np.isnan(field)] = 0
@@ -218,8 +221,17 @@ class MethodOfMomentModel:
         power = 10 * np.log10(power / 1e-3)
         return power
 
-    def save_data(self, txrx_pairs, incident_power, total_power, sensor_positions, direct_field, scattered_field, total_field):
-        np.savez("Forward data",
+    def get_field_plots(self, total_field, direct_field, scattered_field):
+        plt.plot(range(model.number_of_rx - 1), np.abs(total_field[:, 19]), label="Total Field")
+        plt.plot(range(model.number_of_rx - 1), np.abs(direct_field[:, 19]), label="Incident Field")
+        plt.plot(range(model.number_of_rx - 1), np.abs(scattered_field[:, 19]), label="Scattered Field")
+        plt.axis([0, 40, 0, 0.06])
+        plt.legend()
+        plt.show()
+
+    def save_data(self, filename, txrx_pairs, incident_power, total_power, sensor_positions, direct_field, scattered_field, total_field):
+        script_dir = os.path.dirname(os.path.dirname(__file__))
+        np.savez(os.path.join(script_dir, filename),
                  txrx_pairs=txrx_pairs,
                  DOI_size=self.doi_size,
                  incident_power=incident_power,
@@ -267,11 +279,9 @@ if __name__ == '__main__':
 
     current = model.get_induced_current(object_field, incident_field)
 
-    scattered_field = model.get_scattered_field(current)
+    scattered_field = model.get_scattered_field(current, grid_positions, transmitter_positions)
 
     total_field = direct_field + scattered_field
-
-    total_field_copy = copy.deepcopy(total_field)
 
     direct_field, scattered_field, total_field, txrx_pairs = model.transreceiver_manipulation(direct_field, scattered_field, total_field)
 
@@ -279,8 +289,7 @@ if __name__ == '__main__':
 
     total_power = model.get_power_from_field(total_field)
 
-    # ----------------------------------------------------------------------
-    # All field values are now calculated
-    # ----------------------------------------------------------------------
+    filename = "forward_data"
+    model.save_data(filename, txrx_pairs, incident_power, total_power, sensor_positions, direct_field, scattered_field, total_field)
 
-    model.save_data(txrx_pairs, incident_power, total_power, sensor_positions, direct_field, scattered_field, total_field)
+    model.get_field_plots(total_field, direct_field, scattered_field)
