@@ -155,7 +155,6 @@ class MethodOfMomentModel:
 
         current = np.zeros((self.m**2, self.number_of_tx), dtype=complex)
         for i in range(len(self.object_grid_indices[0])):
-            print(i, self.object_grid_indices[0][i], J1[i,:][0])
             current[self.object_grid_indices[0][i],:] = J1[i,:]
 
         return current
