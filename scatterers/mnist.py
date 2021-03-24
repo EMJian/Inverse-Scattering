@@ -1,21 +1,20 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
 from skimage.color import rgb2gray
 from skimage.filters import threshold_otsu
 from skimage.transform import resize
-
-
 from tensorflow.keras.datasets import mnist
+
+from config import Config
 
 
 class MNISTScatterer:
 
-    def __init__(self, image, number_of_grids, object_permittivity):
+    def __init__(self, image):
 
         self.image = image
-        self.object_permittivity = object_permittivity
-        self.number_of_grids = number_of_grids
+        self.object_permittivity = Config.object_permittivity
+        self.number_of_grids = Config.grid_number
 
     def convert_to_binary(self):
         grayscale = rgb2gray(self.image)
@@ -65,6 +64,6 @@ if __name__ == '__main__':
 
     for i in range(1):
         image = digit_images[0, :, :]
-        scatterer = MNISTScatterer(image, 100, 3)
+        scatterer = MNISTScatterer(image)
         permittivity.append(scatterer.get_scatterer_profile())
         scatterer.view_images()

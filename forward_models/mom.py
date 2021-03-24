@@ -5,55 +5,45 @@ from scipy.special import hankel1
 
 import matplotlib.pyplot as plt
 
+from config import Config
+
 
 class MethodOfMomentModel:
 
     def __init__(self):
 
         # System parameters
-        self.frequency = 2.4e9
+        self.frequency = Config.frequency
         self.wavelength = 3e8 / self.frequency
         self.wave_number = 2*np.pi / self.wavelength
         self.impedance = 120*np.pi
-        self.geometry = "square"
-        self.room_length = 3
-        self.transreceiver = True
+        self.geometry = Config.geometry
+        self.room_length = Config.room_length
+        self.transreceiver = Config.transceiver
         self.nan_remove = True
         self.noise_level = 0
-        self.doi_size = 0.5
-        self.object_permittivity = 3
-        self.number_of_rx = 40
-        self.number_of_tx = self.number_of_rx
-        self.m = 100
+        self.doi_size = Config.doi_size
+        self.object_permittivity = Config.object_permittivity
+        self.number_of_rx = Config.number_of_receivers
+        self.number_of_tx = Config.number_of_transmitters
+        self.m = Config.grid_number
         self.number_of_grids = self.m ** 2
         assert self.m * self.wavelength / (np.sqrt(self.object_permittivity) * self.doi_size) > 10
 
     def get_sensor_positions(self):
         """
-        Function returns the co-ordinates where sensors are placed
+        Function returns the co-ordinates where sensors are placed, values come from config file
+        1 x num_of_tx list containing tuples that specify sensor coordinates in the room
         """
-        X = [-1.5, -1.2, -0.9, -0.6, -0.3, 0,
-         0.3, 0.6, 0.9, 1.2, 1.5, 1.5,
-         1.5, 1.5, 1.5, 1.5, 1.5, 1.5,
-         1.5, 1.5, 1.5, 1.2, 0.9, 0.6,
-         0.3, 0, -0.3, -0.6, -0.9, -1.2,
-         -1.5, -1.5, -1.5, -1.5, -1.5,
-         -1.5, -1.5, -1.5, -1.5, -1.5]
-
-        Y = [-1.5, -1.5, -1.5, -1.5, -1.5,
-         -1.5, -1.5, -1.5, -1.5, -1.5,
-         -1.5, -1.2, -0.9, -0.6, -0.3, 0,
-         0.3, 0.6, 0.9, 1.2, 1.5, 1.5,
-         1.5, 1.5, 1.5, 1.5, 1.5, 1.5,
-         1.5, 1.5, 1.5, 1.2, 0.9, 0.6,
-         0.3, 0, -0.3, -0.6, -0.9, -1.2]
-
-        sensor_positions = np.transpose(np.array([X, Y]))
+        x = Config.sensor_x
+        y = Config.sensor_y
+        sensor_positions = np.transpose(np.array([x, y]))
         return sensor_positions
 
     def get_grid_positions(self):
         """
         Returns x and y coordinates for centroids of all grids
+        Two m x m arrays, one for x coordinates of the grids, one for y coordinates
         """
         self.grid_length = self.doi_size / self.m
         self.grid_radius = np.sqrt(self.grid_length**2/np.pi)
@@ -61,20 +51,10 @@ class MethodOfMomentModel:
         self.centroids_y = np.arange(start=self.doi_size - self.grid_length/2, stop=0, step=-self.grid_length)
         return np.meshgrid(self.centroids_x, self.centroids_y)
 
-    def get_grid_permittivities(self, grid_positions):
-        """
-        Returns an MxM 2D array containing permittivity of each grid
-        Need to be able to read this from images
-        """
-        h_side_x = 0.15
-        h_side_y = 0.15
-        epsilon_r = np.ones((self.m, self.m), dtype=float)
-        epsilon_r[(grid_positions[0] - 0.25)**2 + (grid_positions[1] - 0.25)**2 <= h_side_y**2] = self.object_permittivity
-        return epsilon_r
-
     def find_grids_with_object(self, grid_positions, grid_permittivities):
         """
         Function returns centroids of grids containing scatterers
+        List containing x,y indices of grids containing point scatterers
         """
         self.object_grid_centroids = []
         self.object_grid_locations = []
@@ -128,7 +108,7 @@ class MethodOfMomentModel:
 
     def get_incident_field(self, transmitter_positions, grid_positions):
         """
-        Field from transmitter on incident every grid
+        Field from transmitter on every incident grid
         Output dimension - number of transmitters x number of grids
         """
         transmitter_x = [pos[0] for pos in transmitter_positions]
@@ -220,7 +200,8 @@ class MethodOfMomentModel:
         power = 10 * np.log10(power / 1e-3)
         return power
 
-    def get_field_plots(self, total_field, direct_field, scattered_field):
+    @staticmethod
+    def get_field_plots(total_field, direct_field, scattered_field):
         plt.plot(range(model.number_of_rx - 1), np.abs(total_field[:, 19]), label="Total Field")
         plt.plot(range(model.number_of_rx - 1), np.abs(direct_field[:, 19]), label="Incident Field")
         plt.plot(range(model.number_of_rx - 1), np.abs(scattered_field[:, 19]), label="Scattered Field")
@@ -248,47 +229,49 @@ class MethodOfMomentModel:
         print("Data: ", data.files)
         return data.files
 
+    def generate_forward_data(self, grid_permittivities, save=True, filename="forward_data", plot=False):
+        sensor_positions = self.get_sensor_positions()
+        receiver_positions = sensor_positions
+        transmitter_positions = sensor_positions
+        grid_positions = self.get_grid_positions()
+        self.find_grids_with_object(grid_positions, grid_permittivities)
+        object_field = self.get_field_from_scattering(grid_permittivities)
+        direct_field = self.get_direct_field(transmitter_positions, receiver_positions)
+        incident_field = self.get_incident_field(transmitter_positions, grid_positions)
+        current = model.get_induced_current(object_field, incident_field)
+        scattered_field = model.get_scattered_field(current, grid_positions, transmitter_positions)
+        total_field = direct_field + scattered_field
+        direct_field, scattered_field, total_field, txrx_pairs =\
+            model.transreceiver_manipulation(direct_field, scattered_field, total_field)
+        incident_power = self.get_power_from_field(direct_field)
+        total_power = self.get_power_from_field(total_field)
+
+        if plot:
+            MethodOfMomentModel.get_field_plots(total_field, direct_field, scattered_field)
+
+        if save:
+            filename = "forward_data"
+            model.save_data(filename, txrx_pairs, incident_power, total_power, sensor_positions, direct_field,
+                            scattered_field, total_field)
+
+        return txrx_pairs, incident_power, total_power, sensor_positions, direct_field, scattered_field, total_field
+
 
 if __name__ == '__main__':
 
+    def get_grid_permittivity(grid_positions):
+        """
+        Returns an MxM 2D array containing permittivity of each grid
+        Need to be able to read this from images
+        """
+        m = Config.grid_number
+        h_side_x = 0.15
+        h_side_y = 0.15
+        epsilon_r = np.ones((m, m), dtype=float)
+        epsilon_r[(grid_positions[0]-0.25)**2 + (grid_positions[1]-0.25)**2 <= h_side_y**2] = Config.object_permittivity
+        return epsilon_r
+
     model = MethodOfMomentModel()
-
-    # 1 x 40 list containing tuples that specify sensor coordinates in the room
-    sensor_positions = model.get_sensor_positions()
-    receiver_positions = sensor_positions
-    transmitter_positions = sensor_positions
-
-    # Two 100 x 100 arrays, one for x coordinates of the grids, one for y coordinates
     grid_positions = model.get_grid_positions()
-
-    # One 100 x 100 array, value specifying permittivity for each grid
-    grid_permittivities = model.get_grid_permittivities(grid_positions)
-
-    # List containing x,y indices of grids containing point scatterers - dim (1 x 2820)
-    model.find_grids_with_object(grid_positions, grid_permittivities)
-
-    # Scattered field on every scatterer due to every other - dim (2820 x 2820)
-    object_field = model.get_field_from_scattering(grid_permittivities)
-
-    # Field from transmitter to receiver - dim (40 x 40)
-    direct_field = model.get_direct_field(transmitter_positions, receiver_positions)
-
-    # Field from transmitter to every other grid - dim (40 * 10000)
-    incident_field = model.get_incident_field(transmitter_positions, grid_positions)
-
-    current = model.get_induced_current(object_field, incident_field)
-
-    scattered_field = model.get_scattered_field(current, grid_positions, transmitter_positions)
-
-    total_field = direct_field + scattered_field
-
-    direct_field, scattered_field, total_field, txrx_pairs = model.transreceiver_manipulation(direct_field, scattered_field, total_field)
-
-    incident_power = model.get_power_from_field(direct_field)
-
-    total_power = model.get_power_from_field(total_field)
-
-    filename = "forward_data"
-    model.save_data(filename, txrx_pairs, incident_power, total_power, sensor_positions, direct_field, scattered_field, total_field)
-
-    model.get_field_plots(total_field, direct_field, scattered_field)
+    grid_permittivity = get_grid_permittivity(grid_positions)
+    model.generate_forward_data(grid_permittivity, save=False, plot=True)
