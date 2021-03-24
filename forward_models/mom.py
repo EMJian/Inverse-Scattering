@@ -241,9 +241,8 @@ class MethodOfMomentModel:
         current = model.get_induced_current(object_field, incident_field)
         scattered_field = model.get_scattered_field(current, grid_positions, transmitter_positions)
         total_field = direct_field + scattered_field
-        direct_field, scattered_field, total_field, txrx_pairs = model.transreceiver_manipulation(direct_field,
-                                                                                                  scattered_field,
-                                                                                                  total_field)
+        direct_field, scattered_field, total_field, txrx_pairs =\
+            model.transreceiver_manipulation(direct_field, scattered_field, total_field)
         incident_power = self.get_power_from_field(direct_field)
         total_power = self.get_power_from_field(total_field)
 
@@ -254,8 +253,8 @@ class MethodOfMomentModel:
             filename = "forward_data"
             model.save_data(filename, txrx_pairs, incident_power, total_power, sensor_positions, direct_field,
                             scattered_field, total_field)
-        else:
-            return txrx_pairs, incident_power, total_power, sensor_positions, direct_field, scattered_field, total_field
+
+        return txrx_pairs, incident_power, total_power, sensor_positions, direct_field, scattered_field, total_field
 
 
 if __name__ == '__main__':
