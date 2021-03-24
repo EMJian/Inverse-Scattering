@@ -7,9 +7,9 @@ from forward_models.mom import MethodOfMomentModel
 if __name__ == '__main__':
 
     script_dir = os.path.dirname(__file__)
-    filepath = r"C:/Users/dsamr/OneDrive - HKUST Connect/MPHIL RESEARCH/PROJECTS/ISP/data/scatterer_data/mnist_scatterers_3.npz"
+    filepath = r"C:/Users/dsamr/OneDrive - HKUST Connect/MPHIL RESEARCH/PROJECTS/ISP/data/scatterer_data/mnist_scatterers_8.npz"
     data = np.load(filepath)
-    scatterers = data["mnist_scatterers_3"]
+    scatterers = data["mnist_scatterers_8"]
 
     total_fields = []
 
@@ -39,6 +39,6 @@ if __name__ == '__main__':
         total_fields.append(total_field)
 
     script_dir = os.path.dirname(__file__)
-    filename = "mnist_total_field_3s"
-    np.savez(os.path.join(script_dir, "field_data", filename), total_field_3s=total_fields)
+    filename = "mnist_total_field_8s"
+    np.savez(os.path.join(script_dir, "field_data", filename), total_field_8s=total_fields)
     print("Data saved")
