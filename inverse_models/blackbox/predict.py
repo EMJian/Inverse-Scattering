@@ -6,9 +6,7 @@ from data import Data
 
 if __name__ == '__main__':
 
-    model = load_model(r"C:\Users\dsamr\OneDrive - HKUST Connect\MPHIL RESEARCH\PROJECTS\ISP\inverse_models\blackbox\
-    trained_model\blackbox_model\14th March 2021")
-    train_input, test_input, train_output, test_output = Data.get_data()
+    model = load_model(r"C:/Users/dsamr/OneDrive - HKUST Connect/MPHIL RESEARCH/PROJECTS/ISP/inverse_models/blackbox/trained_model/blackbox_model")
     y_pred = model.predict(test_input)
 
     fig = plt.figure(figsize=(8, 8))
