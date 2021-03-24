@@ -24,21 +24,14 @@ class MethodOfMomentModel:
         self.noise_level = 0
         self.doi_size = Config.doi_size
         self.object_permittivity = Config.object_permittivity
+
         self.number_of_rx = Config.number_of_receivers
         self.number_of_tx = Config.number_of_transmitters
-        self.m = Config.grid_number
+        self.sensor_positions = Config.sensor_positions
+
+        self.m = Config.forward_grid_number
         self.number_of_grids = self.m ** 2
         assert self.m * self.wavelength / (np.sqrt(self.object_permittivity) * self.doi_size) > 10
-
-    def get_sensor_positions(self):
-        """
-        Function returns the co-ordinates where sensors are placed, values come from config file
-        1 x num_of_tx list containing tuples that specify sensor coordinates in the room
-        """
-        x = Config.sensor_x
-        y = Config.sensor_y
-        sensor_positions = np.transpose(np.array([x, y]))
-        return sensor_positions
 
     def get_grid_positions(self):
         """
@@ -173,27 +166,11 @@ class MethodOfMomentModel:
             return field
 
     def transreceiver_manipulation(self, direct_field, scattered_field, total_field):
-
-        txrx_pairs = []
-
         if self.transreceiver:
-
             direct_field = self.remove_nan_values(direct_field)
             scattered_field = self.remove_nan_values(scattered_field)
             total_field = self.remove_nan_values(total_field)
-
-            for i in range(self.number_of_tx):
-                for j in range(self.number_of_rx):
-                    if i != j:
-                        txrx_pairs.append((i, j))
-
-        else:
-
-            for i in range(self.number_of_tx):
-                for j in range(self.number_of_rx):
-                    txrx_pairs.append((i, j))
-
-        return direct_field, scattered_field, total_field, txrx_pairs
+        return direct_field, scattered_field, total_field
 
     def get_power_from_field(self, field):
         power = (np.abs(field)**2) * (self.wavelength**2) / (4*np.pi*self.impedance)
@@ -209,18 +186,14 @@ class MethodOfMomentModel:
         plt.legend()
         plt.show()
 
-    def save_data(self, filename, txrx_pairs, incident_power, total_power, sensor_positions, direct_field, scattered_field, total_field):
+    def save_data(self, filename, incident_power, total_power, direct_field, total_field):
         script_dir = os.path.dirname(os.path.dirname(__file__))
         np.savez(os.path.join(script_dir, filename),
-                 txrx_pairs=txrx_pairs,
-                 DOI_size=self.doi_size,
-                 incident_power=incident_power,
-                 total_power=total_power,
-                 sensor_positions=sensor_positions,
                  grid_centroids_x=self.centroids_x,
                  grid_centroids_y=self.centroids_y,
+                 incident_power=incident_power,
+                 total_power=total_power,
                  direct_field=direct_field,
-                 scattered_field=scattered_field,
                  total_field=total_field
                  )
 
@@ -229,10 +202,9 @@ class MethodOfMomentModel:
         print("Data: ", data.files)
         return data.files
 
-    def generate_forward_data(self, grid_permittivities, save=True, filename="forward_data", plot=False):
-        sensor_positions = self.get_sensor_positions()
-        receiver_positions = sensor_positions
-        transmitter_positions = sensor_positions
+    def generate_forward_data(self, grid_permittivities, save=False, filename="forward_data", plot=False):
+        receiver_positions = self.sensor_positions
+        transmitter_positions = self.sensor_positions
         grid_positions = self.get_grid_positions()
         self.find_grids_with_object(grid_positions, grid_permittivities)
         object_field = self.get_field_from_scattering(grid_permittivities)
@@ -241,7 +213,7 @@ class MethodOfMomentModel:
         current = model.get_induced_current(object_field, incident_field)
         scattered_field = model.get_scattered_field(current, grid_positions, transmitter_positions)
         total_field = direct_field + scattered_field
-        direct_field, scattered_field, total_field, txrx_pairs =\
+        direct_field, scattered_field, total_field =\
             model.transreceiver_manipulation(direct_field, scattered_field, total_field)
         incident_power = self.get_power_from_field(direct_field)
         total_power = self.get_power_from_field(total_field)
@@ -251,10 +223,8 @@ class MethodOfMomentModel:
 
         if save:
             filename = "forward_data"
-            model.save_data(filename, txrx_pairs, incident_power, total_power, sensor_positions, direct_field,
-                            scattered_field, total_field)
-
-        return txrx_pairs, incident_power, total_power, sensor_positions, direct_field, scattered_field, total_field
+            model.save_data(filename, incident_power, total_power, direct_field, total_field)
+        return incident_power, total_power, direct_field, total_field
 
 
 if __name__ == '__main__':
@@ -264,7 +234,7 @@ if __name__ == '__main__':
         Returns an MxM 2D array containing permittivity of each grid
         Need to be able to read this from images
         """
-        m = Config.grid_number
+        m = Config.forward_grid_number
         h_side_x = 0.15
         h_side_y = 0.15
         epsilon_r = np.ones((m, m), dtype=float)
