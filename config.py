@@ -22,7 +22,7 @@ class Config:
     # Room details
     geometry = "square"
     room_length = 3
-    doi_size = 0.5
+    doi_size = 0.1
     forward_grid_number = 100
     inverse_grid_number = 50
 
@@ -62,4 +62,7 @@ class Config:
     sensor_positions = np.transpose(np.array([sensor_x, sensor_y]))
 
     # scatterer details
-    object_permittivity = 3
+    object_permittivity = 1.1
+
+    # Field details
+    nan_remove = True

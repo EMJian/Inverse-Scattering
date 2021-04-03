@@ -8,29 +8,36 @@ import matplotlib.pyplot as plt
 from config import Config
 
 
+# noinspection PyAttributeOutsideInit
 class MethodOfMomentModel:
 
     def __init__(self):
 
-        # System parameters
+        # Physical parameters
         self.frequency = Config.frequency
         self.wavelength = 3e8 / self.frequency
         self.wave_number = 2*np.pi / self.wavelength
         self.impedance = 120*np.pi
+
+        # Room parameters
         self.geometry = Config.geometry
         self.room_length = Config.room_length
-        self.transreceiver = Config.transceiver
-        self.nan_remove = True
-        self.noise_level = 0
         self.doi_size = Config.doi_size
-        self.object_permittivity = Config.object_permittivity
+        self.m = Config.forward_grid_number
+        self.number_of_grids = self.m ** 2
 
+        # Sensor parameters
         self.number_of_rx = Config.number_of_receivers
         self.number_of_tx = Config.number_of_transmitters
         self.sensor_positions = Config.sensor_positions
+        self.transceiver = Config.transceiver
 
-        self.m = Config.forward_grid_number
-        self.number_of_grids = self.m ** 2
+        # Scatterer parameters
+        self.object_permittivity = Config.object_permittivity
+
+        self.nan_remove = True
+        self.noise_level = 0
+
         assert self.m * self.wavelength / (np.sqrt(self.object_permittivity) * self.doi_size) > 10
 
     def get_grid_positions(self):
@@ -165,8 +172,8 @@ class MethodOfMomentModel:
             field[np.isnan(field)] = 0
             return field
 
-    def transreceiver_manipulation(self, direct_field, scattered_field, total_field):
-        if self.transreceiver:
+    def transceiver_manipulation(self, direct_field, scattered_field, total_field):
+        if self.transceiver:
             direct_field = self.remove_nan_values(direct_field)
             scattered_field = self.remove_nan_values(scattered_field)
             total_field = self.remove_nan_values(total_field)
@@ -177,11 +184,10 @@ class MethodOfMomentModel:
         power = 10 * np.log10(power / 1e-3)
         return power
 
-    @staticmethod
-    def get_field_plots(total_field, direct_field, scattered_field):
-        plt.plot(range(model.number_of_rx - 1), np.abs(total_field[:, 19]), label="Total Field")
-        plt.plot(range(model.number_of_rx - 1), np.abs(direct_field[:, 19]), label="Incident Field")
-        plt.plot(range(model.number_of_rx - 1), np.abs(scattered_field[:, 19]), label="Scattered Field")
+    def get_field_plots(self, total_field, direct_field, scattered_field):
+        plt.plot(range(self.number_of_rx - 1), np.abs(total_field[:, 19]), label="Total Field")
+        plt.plot(range(self.number_of_rx - 1), np.abs(direct_field[:, 19]), label="Incident Field")
+        plt.plot(range(self.number_of_rx - 1), np.abs(scattered_field[:, 19]), label="Scattered Field")
         plt.axis([0, 40, 0, 0.06])
         plt.legend()
         plt.show()
@@ -210,20 +216,20 @@ class MethodOfMomentModel:
         object_field = self.get_field_from_scattering(grid_permittivities)
         direct_field = self.get_direct_field(transmitter_positions, receiver_positions)
         incident_field = self.get_incident_field(transmitter_positions, grid_positions)
-        current = model.get_induced_current(object_field, incident_field)
-        scattered_field = model.get_scattered_field(current, grid_positions, transmitter_positions)
+        current = self.get_induced_current(object_field, incident_field)
+        scattered_field = self.get_scattered_field(current, grid_positions, transmitter_positions)
         total_field = direct_field + scattered_field
         direct_field, scattered_field, total_field =\
-            model.transreceiver_manipulation(direct_field, scattered_field, total_field)
+            self.transceiver_manipulation(direct_field, scattered_field, total_field)
         incident_power = self.get_power_from_field(direct_field)
         total_power = self.get_power_from_field(total_field)
 
         if plot:
-            MethodOfMomentModel.get_field_plots(total_field, direct_field, scattered_field)
+            self.get_field_plots(total_field, direct_field, scattered_field)
 
         if save:
             filename = "forward_data"
-            model.save_data(filename, incident_power, total_power, direct_field, total_field)
+            self.save_data(filename, incident_power, total_power, direct_field, total_field)
         return incident_power, total_power, direct_field, total_field
 
 
@@ -235,13 +241,21 @@ if __name__ == '__main__':
         Need to be able to read this from images
         """
         m = Config.forward_grid_number
-        h_side_x = 0.15
-        h_side_y = 0.15
+        h_side_x = 0.01
+        h_side_y = 0.01
         epsilon_r = np.ones((m, m), dtype=float)
-        epsilon_r[(grid_positions[0]-0.25)**2 + (grid_positions[1]-0.25)**2 <= h_side_y**2] = Config.object_permittivity
+        epsilon_r[(grid_positions[0]-0.05)**2 + (grid_positions[1]-0.05)**2 <= h_side_y**2] = Config.object_permittivity
         return epsilon_r
 
     model = MethodOfMomentModel()
     grid_positions = model.get_grid_positions()
     grid_permittivity = get_grid_permittivity(grid_positions)
-    model.generate_forward_data(grid_permittivity, save=False, plot=True)
+    plt.imshow(grid_permittivity)
+    incident_power, total_power, direct_field, total_field = model.generate_forward_data(grid_permittivity, save=False, plot=True)
+    filename = r"C:\Users\dsamr\OneDrive - HKUST Connect\MPHIL RESEARCH\PROJECTS\ISP\data\field_data\forward_data.npz"
+    np.savez(filename,
+             incident_power=incident_power,
+             total_power=total_power,
+             direct_field=direct_field,
+             total_field=total_field,
+             )
