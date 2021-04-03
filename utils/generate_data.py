@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 from tensorflow.keras.datasets import mnist
 
 from scatterers.mnist import MNISTScatterer
@@ -25,6 +26,7 @@ class GenerateData:
             images = images[:how_many]
         for i in range(len(images)):
             image = images[i]
+            plt.imshow(image)
             scatterer = MNISTScatterer(image)
             scatterers.append(scatterer.get_scatterer_profile())
 
@@ -43,9 +45,8 @@ class GenerateData:
         total_fields = []
         total_powers = []
         for i, scatterer in enumerate(scatterers):
-            print(i)
             model = MethodOfMomentModel()
-            txrx_pairs, incident_power, total_power, sensor_positions, direct_field, scattered_field, total_field = \
+            incident_power, total_power, direct_field, total_field = \
                 model.generate_forward_data(scatterer)
             incident_fields.append(direct_field)
             incident_powers.append(incident_power)
@@ -68,7 +69,7 @@ class GenerateData:
 if __name__ == '__main__':
 
     scatterer_type = "mnist"
-    digit = "5"
+    digit = 5
     how_many = 2
     scatterers = GenerateData.generate_mnist_scatterers(digit, how_many)
     incident_fields, incident_powers, total_fields, total_powers = GenerateData.generate_forward_data(scatterers)

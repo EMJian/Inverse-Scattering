@@ -8,13 +8,14 @@ from tensorflow.keras.datasets import mnist
 from config import Config
 
 
+# noinspection PyAttributeOutsideInit
 class MNISTScatterer:
 
     def __init__(self, image):
 
         self.image = image
         self.object_permittivity = Config.object_permittivity
-        self.number_of_grids = Config.grid_number
+        self.number_of_grids = Config.forward_grid_number
 
     def convert_to_binary(self):
         grayscale = rgb2gray(self.image)
