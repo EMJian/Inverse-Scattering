@@ -53,7 +53,7 @@ class MethodOfMomentModel:
 
     def find_grids_with_object(self, grid_positions, grid_permittivities):
         """
-        Function returns centroids of grids containing scatterers
+        Returns centroids of grids containing scatterers
         List containing x,y indices of grids containing point scatterers
         """
         self.object_grid_centroids = []
@@ -69,7 +69,9 @@ class MethodOfMomentModel:
         self.object_grid_indices = np.nonzero(unrolled_permittivities != 1)
 
     def get_field_from_scattering(self, grid_permittivities):
-        # Object field is a 2D array that captures the field on every point scatterer due to every other point scatterer
+        """
+        Object field is a 2D array that captures the field on every point scatterer due to every other point scatterer
+        """
         object_field = np.zeros((len(self.object_grid_centroids), len(self.object_grid_centroids)), dtype=complex)
         all_x = [grid[0] for grid in self.object_grid_centroids]
         all_y = [grid[1] for grid in self.object_grid_centroids]
@@ -114,8 +116,8 @@ class MethodOfMomentModel:
         transmitter_x = [pos[0] for pos in transmitter_positions]
         transmitter_y = [pos[1] for pos in transmitter_positions]
 
-        grid_x = grid_positions[0] # 100 x 100
-        grid_x = grid_x.reshape(grid_x.size, order='F') # 10000
+        grid_x = grid_positions[0]
+        grid_x = grid_x.reshape(grid_x.size, order='F')
 
         grid_y = grid_positions[1]
         grid_y = grid_y.reshape(grid_y.size, order='F')
@@ -131,7 +133,6 @@ class MethodOfMomentModel:
 
         incident_field_on_object = - incident_field[self.object_grid_indices]
         J1 = np.linalg.inv(object_field) @ incident_field_on_object
-        # The inverse is correct
 
         current = np.zeros((self.m**2, self.number_of_tx), dtype=complex)
         for i in range(len(self.object_grid_indices[0])):
@@ -144,8 +145,8 @@ class MethodOfMomentModel:
         transmitter_x = [pos[0] for pos in transmitter_positions]
         transmitter_y = [pos[1] for pos in transmitter_positions]
 
-        grid_x = grid_positions[0]  # 100 x 100
-        grid_x = grid_x.reshape(grid_x.size, order='F')  # 10000
+        grid_x = grid_positions[0]
+        grid_x = grid_x.reshape(grid_x.size, order='F')
 
         grid_y = grid_positions[1]
         grid_y = grid_y.reshape(grid_y.size, order='F')
@@ -205,7 +206,6 @@ class MethodOfMomentModel:
 
     def load_data(self, filepath):
         data = np.load(filepath)
-        print("Data: ", data.files)
         return data.files
 
     def generate_forward_data(self, grid_permittivities, save=False, filename="forward_data", plot=False):
@@ -228,7 +228,6 @@ class MethodOfMomentModel:
             self.get_field_plots(total_field, direct_field, scattered_field)
 
         if save:
-            filename = "forward_data"
             self.save_data(filename, incident_power, total_power, direct_field, total_field)
         return incident_power, total_power, direct_field, total_field
 
@@ -241,18 +240,17 @@ if __name__ == '__main__':
         Need to be able to read this from images
         """
         m = Config.forward_grid_number
-        h_side_x = 0.01
-        h_side_y = 0.01
+        h_side_y = 0.2
         epsilon_r = np.ones((m, m), dtype=float)
-        epsilon_r[(grid_positions[0]-0.05)**2 + (grid_positions[1]-0.05)**2 <= h_side_y**2] = Config.object_permittivity
+        epsilon_r[(grid_positions[0]-0.25)**2 + (grid_positions[1]-0.25)**2 <= h_side_y**2] = Config.object_permittivity
         return epsilon_r
 
     model = MethodOfMomentModel()
     grid_positions = model.get_grid_positions()
     grid_permittivity = get_grid_permittivity(grid_positions)
-    plt.imshow(grid_permittivity)
     incident_power, total_power, direct_field, total_field = model.generate_forward_data(grid_permittivity, save=False, plot=True)
-    filename = r"C:\Users\dsamr\OneDrive - HKUST Connect\MPHIL RESEARCH\PROJECTS\ISP\data\field_data\forward_data.npz"
+    directory = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "field_data")
+    filename = os.path.join(directory, "forward_data.npz")
     np.savez(filename,
              incident_power=incident_power,
              total_power=total_power,
