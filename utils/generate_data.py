@@ -84,6 +84,7 @@ class GenerateData:
             total_forward_field = field_data["total_fields"][i]
             total_forward_power = field_data["total_powers"][i]
             incident_forward_power = field_data["incident_powers"][i]
+            # TODO Add choice of model and regularizer at top level for data generation
             chi = model.get_reconstruction("prytov", total_forward_field, total_forward_power, incident_forward_power)
             initial_guesses.append(chi)
         return initial_guesses
