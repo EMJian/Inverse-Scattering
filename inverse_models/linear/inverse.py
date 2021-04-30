@@ -6,11 +6,11 @@ from scipy.special import hankel1
 import matplotlib.pyplot as plt
 
 from config import Config
-from inverse_models.approximations.models import Born, Rytov, PRytov
-from inverse_models.approximations.regularize import Regularizer
+from inverse_models.linear.models import Born, Rytov, PRytov
+from inverse_models.linear.regularize import Regularizer
 
 
-class LinearApproximation:
+class LinearInverse:
 
     def __init__(self):
 
@@ -70,8 +70,8 @@ class LinearApproximation:
         transmitter_x = [pos[0] for pos in transmitter_positions]
         transmitter_y = [pos[1] for pos in transmitter_positions]
 
-        grid_x = grid_positions[0] # 100 x 100
-        grid_x = grid_x.reshape(grid_x.size, order='F') # 10000
+        grid_x = grid_positions[0]
+        grid_x = grid_x.reshape(grid_x.size, order='F')
 
         grid_y = grid_positions[1]
         grid_y = grid_y.reshape(grid_y.size, order='F')
@@ -87,8 +87,8 @@ class LinearApproximation:
         transmitter_x = [pos[0] for pos in transmitter_positions]
         transmitter_y = [pos[1] for pos in transmitter_positions]
 
-        grid_x = grid_positions[0] # 100 x 100
-        grid_x = grid_x.reshape(grid_x.size, order='F') # 10000
+        grid_x = grid_positions[0]
+        grid_x = grid_x.reshape(grid_x.size, order='F')
 
         grid_y = grid_positions[1]
         grid_y = grid_y.reshape(grid_y.size, order='F')
@@ -125,26 +125,39 @@ class LinearApproximation:
     def get_reconstruction(self, method, total_forward_field, total_forward_power, incident_forward_power):
         model, data = self.get_model_and_data(total_forward_field, total_forward_power, incident_forward_power, method=method)
         regularizer = Regularizer()
-        alpha = 1e5
+        alpha = 1
         chi = regularizer.ridge(model, data, alpha)
         return chi
 
 
 if __name__ == '__main__':
 
-    model = LinearApproximation()
+    model = LinearInverse()
 
     # load data
-    # filepath = r"C:\Users\dsamr\OneDrive - HKUST Connect\MPHIL RESEARCH\PROJECTS\ISP\data\scatterer_data\scatterers_mnist_5_2.npz"
-    # scatterer_data = np.load(filepath)
-    # scatterer_data = scatterer_data["scatterers"]
-    filepath = r"C:\Users\dsamr\OneDrive - HKUST Connect\MPHIL RESEARCH\PROJECTS\ISP\data\field_data\forward_data.npz"
-    field_data = np.load(filepath)
-    total_forward_field = field_data["total_field"]
-    total_forward_power = field_data["total_power"]
-    incident_forward_power = field_data["incident_power"]
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
 
+    filepath = os.path.join(data_dir, "scatterer_data", "scatterers_mnist_3_all_0.5_1.5.npz")
+    scatterer_data = np.load(filepath)
+    scatterer_data = scatterer_data["scatterers"]
+
+    filepath = os.path.join(data_dir, "field_data", "forward_data_mnist_3_all_0.5_1.5.npz")
+    field_data = np.load(filepath)
+
+    # reconstruct profile from field data
+    i = 5
+    total_forward_field = field_data["total_fields"][i]
+    total_forward_power = field_data["total_powers"][i]
+    incident_forward_power = field_data["incident_powers"][i]
     chi = model.get_reconstruction("prytov", total_forward_field, total_forward_power, incident_forward_power)
-    plt.imshow(chi, cmap=plt.cm.gray)
+
+    plt.figure(1)
+    plt.imshow(scatterer_data[i,:,:], cmap=plt.cm.gray, extent=[0, model.doi_size, 0, model.doi_size])
+    plt.title("Original Scatterer")
+    plt.colorbar()
+
+    plt.figure(2)
+    plt.imshow(chi, cmap=plt.cm.gray, extent=[0, model.doi_size, 0, model.doi_size])
+    plt.title("Ridge regression")
     plt.colorbar()
     plt.show()
